@@ -27,7 +27,7 @@ const questions = [
 ];
 
 // ===== MEMORY =====
-const sessions = {};
+const sessions = {}; // Stores user sessions
 
 // ===== HELPER FUNCTIONS =====
 function sendMessage(text) {
@@ -38,7 +38,7 @@ function sendMessage(text) {
     method: "POST",
     headers: { "Content-Type": "application/json", "Content-Length": data.length }
   };
-  const req = https.request(options, res => {});
+  const req = https.request(options);
   req.write(data);
   req.end();
 }
@@ -57,7 +57,7 @@ function sendMessageWithMention(text, name, userId) {
     method: "POST",
     headers: { "Content-Type": "application/json", "Content-Length": data.length }
   };
-  const req = https.request(options, res => {});
+  const req = https.request(options);
   req.write(data);
   req.end();
 }
@@ -71,31 +71,31 @@ app.post("/", (req, res) => {
   const attachments = req.body.attachments || [];
   const hasImage = attachments.some(att => att.type === "image");
 
+  // Ignore messages from the bot itself
   if (sender_type === "bot") return res.sendStatus(200);
 
-  if (!sessions[user]) sessions[user] = { stage: "waitingStart", step: 0, answers: [] };
-  const session = sessions[user];
-
-  // ===== #START COMMAND =====
-  if (session.stage === "waitingStart") {
-    if (textRaw.trim().toLowerCase() === "#start") {
-      sendMessage(
-        `⚠️ Welcome to the Meme Stealing License process! ⚠️\n\n` +
-        `Before you proceed, you must review and consent to the following Terms & Conditions:\n\n` +
-        `1. You may use/steal memes only for personal and group chat use.\n` +
-        `2. This license is non-exclusive and can be revoked at any time.\n` +
-        `3. Meme quality is your responsibility. Overuse of unfunny memes may result in suspension.\n` +
-        `4. This license does NOT guarantee originality.\n` +
-        `5. Cross-chat usage is strictly forbidden.\n` +
-        `6. Reapply per chat if needed.\n` +
-        `7. Failure to comply may result in temporary or permanent revocation of meme privileges.\n\n` +
-        `Do you consent to these terms?\n\n` +
-        `✅ If you agree, type #agree\n❌ If you do NOT agree, type #deny`
-      );
-      session.stage = "terms";
-    }
+  // Create session only when user says #start
+  if (textRaw.trim().toLowerCase() === "#start") {
+    if (!sessions[user]) sessions[user] = { stage: "terms", step: 0, answers: [] };
+    sendMessage(
+      `⚠️ Welcome to the Meme Stealing License process! ⚠️\n\n` +
+      `Before you proceed, you must review and consent to the following Terms & Conditions:\n\n` +
+      `1. You may use/steal memes only for personal and group chat use.\n` +
+      `2. This license is non-exclusive and can be revoked at any time.\n` +
+      `3. Meme quality is your responsibility. Overuse of unfunny memes may result in suspension.\n` +
+      `4. This license does NOT guarantee originality.\n` +
+      `5. Cross-chat usage is strictly forbidden.\n` +
+      `6. Reapply per chat if needed.\n` +
+      `7. Failure to comply may result in temporary or permanent revocation of meme privileges.\n\n` +
+      `Do you consent to these terms?\n\n` +
+      `✅ If you agree, type #agree\n❌ If you do NOT agree, type #deny`
+    );
     return res.sendStatus(200);
   }
+
+  // If session doesn't exist yet, ignore everything else
+  if (!sessions[user]) return res.sendStatus(200);
+  const session = sessions[user];
 
   // ===== TERMS AGREEMENT =====
   if (session.stage === "terms") {
@@ -104,7 +104,7 @@ app.post("/", (req, res) => {
       session.stage = "waitingPhoto";
     } else if (textRaw.trim().toLowerCase() === "#deny") {
       sendMessage(`🚫 Oh, then why are you here in the first place? Skedaddle back to where you came from!`);
-      delete sessions[user];
+      session.stage = "denied";
     } else {
       sendMessage(`Please type #agree to proceed or #deny to quit.`);
     }
@@ -166,12 +166,12 @@ app.post("/", (req, res) => {
       });
       summary += `Application submitted. Please wait 2–3 business minutes.`;
       sendMessageWithMention(summary, OWNER_NAME, OWNER_ID);
-      delete sessions[user];
+      session.stage = "completed"; // session remains for reference
     }
     return res.sendStatus(200);
   }
 
-  return res.sendStatus(200);
+  return res.sendStatus(200); // fallback
 });
 
 // ===== START SERVER =====
