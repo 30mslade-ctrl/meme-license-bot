@@ -7,7 +7,7 @@ app.use(bodyParser.json());
 
 // ===== CONFIG =====
 const BOT_ID = "8846a62e10e090cb28b4582a19"; // replace with your bot ID
-const OWNER_TAG = "@Mira(Reviewer)"; // exact display name
+const OWNER_TAG = "Mira(Reviewer)"; // exact display name
 
 // ===== MEMORY =====
 let users = {};
