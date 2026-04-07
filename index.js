@@ -6,8 +6,8 @@ const app = express();
 app.use(bodyParser.json());
 
 // ===== CONFIG =====
-const BOT_ID = "8846a62e10e090cb28b4582a19";
-const OWNER_TAG = "@Mira(Review";
+const BOT_ID = "8846a62e10e090cb28b4582a19"; // replace with your bot ID
+const OWNER_TAG = "@Mira(Reviewer)"; // exact display name
 
 // ===== MEMORY =====
 let users = {};
@@ -34,6 +34,28 @@ function sendMessage(text) {
   req.write(data);
   req.end();
 }
+
+// ===== #START COMMAND =====
+  if (text.toLowerCase() === "#start") {
+    u.started = true;
+    u.stage = "terms";
+
+    sendMessage(
+      `⚠️ Welcome to the Meme Stealing License process! ⚠️\n\n` +
+      `Before you proceed, please review and consent to the following Terms & Conditions:\n\n` +
+      `1. You may use/steal memes only for personal and group chat use.\n` +
+      `2. This license is non-exclusive and can be revoked at any time.\n` +
+      `3. Meme quality is your responsibility. Overuse of unfunny memes may result in suspension.\n` +
+      `4. This license does NOT guarantee originality.\n` +
+      `5. Cross-chat usage is strictly forbidden.\n` +
+      `6. Reapply per chat if needed.\n` +
+      `7. Failure to comply may result in temporary or permanent revocation of meme privileges.\n\n` +
+      `Do you consent to these terms?\n\n` +
+      `✅ If you agree, type #agree\n❌ If you do NOT agree, type #deny`
+    );
+    return res.sendStatus(200);
+  }
+
 
 // ===== QUESTIONS =====
 const questions = [
@@ -87,12 +109,16 @@ app.post("/", (req, res) => {
 
   const u = users[user];
 
-  // ===== START =====
-  if (text.toLowerCase() === "#start") {
-    u.started = true;
+  // ===== TERMS AGREEMENT =====
+  if (text.toLowerCase() === "#agree" && u.stage === "terms") {
     u.stage = "photo";
+    sendMessage(`${user}, thank you for agreeing! Please submit a photo for your Meme Stealing License.\nThen type: #photo_sent`);
+    return res.sendStatus(200);
+  }
 
-    sendMessage(`${user}, please submit a photo for your Meme License.\nThen type: #photo_sent`);
+  if (text.toLowerCase() === "#deny" && u.stage === "terms") {
+    sendMessage(`🚫 Oh, then why are you here in the first place? Skedaddle back to where you came from!`);
+    u.stage = "none"; // reset the stage
     return res.sendStatus(200);
   }
 
@@ -123,12 +149,9 @@ app.post("/", (req, res) => {
   if (text.toLowerCase() === "#reject") {
     for (let name in users) {
       if (users[name].stage === "waiting" || users[name].stage === "interview") {
-
         const randomMessage = rejectionMessages[Math.floor(Math.random() * rejectionMessages.length)];
-
         sendMessage(`🚫 APPLICATION DENIED: ${name} 🚫\n\n${randomMessage}\n\nYou may reapply at a later time.\n\n${OWNER_TAG}`);
-
-        delete users[name];
+        users[name].stage = "none"; // reset stage
         break;
       }
     }
@@ -157,14 +180,14 @@ app.post("/", (req, res) => {
 
       sendMessage(summary);
 
-      // IMPORTANT: keep them in "waiting" so you can reject AFTER interview too
+      // Reset user to "waiting" so they can be rejected after interview if needed
       users[user].stage = "waiting";
     }
 
     return res.sendStatus(200);
   }
 
-  res.sendStatus(200);
+  res.sendStatus(200); // fallback
 });
 
 // ===== SERVER =====
