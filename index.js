@@ -6,9 +6,9 @@ const app = express();
 app.use(bodyParser.json());
 
 // ===== CONFIG =====
-const BOT_ID = "8846a62e10e090cb28b4582a19";
-const OWNER_NAME = "Mira(Reviewer)";
-const OWNER_ID = "122993150";
+const BOT_ID = "YOUR_BOT_ID_HERE"; // replace with your bot ID
+const OWNER_NAME = "Mira(Reviewer)"; // exact display name
+const OWNER_ID = "YOUR_USER_ID_HERE"; // GroupMe user ID as a string
 
 // ===== INTERVIEW QUESTIONS =====
 const questions = [
@@ -38,7 +38,7 @@ function sendMessage(text) {
     method: "POST",
     headers: { "Content-Type": "application/json", "Content-Length": data.length }
   };
-  const req = https.request(options);
+  const req = https.request(options, res => {});
   req.write(data);
   req.end();
 }
@@ -57,7 +57,7 @@ function sendMessageWithMention(text, name, userId) {
     method: "POST",
     headers: { "Content-Type": "application/json", "Content-Length": data.length }
   };
-  const req = https.request(options);
+  const req = https.request(options, res => {});
   req.write(data);
   req.end();
 }
@@ -77,21 +77,23 @@ app.post("/", (req, res) => {
   const session = sessions[user];
 
   // ===== #START COMMAND =====
-  if (session.stage === "waitingStart" && textRaw.trim().toLowerCase() === "#start") {
-    sendMessage(
-      `⚠️ Welcome to the Meme Stealing License process! ⚠️\n\n` +
-      `Before you proceed, you must review and consent to the following Terms & Conditions:\n\n` +
-      `1. You may use/steal memes only for personal and group chat use.\n` +
-      `2. This license is non-exclusive and can be revoked at any time.\n` +
-      `3. Meme quality is your responsibility. Overuse of unfunny memes may result in suspension.\n` +
-      `4. This license does NOT guarantee originality.\n` +
-      `5. Cross-chat usage is strictly forbidden.\n` +
-      `6. Reapply per chat if needed.\n` +
-      `7. Failure to comply may result in temporary or permanent revocation of meme privileges.\n\n` +
-      `Do you consent to these terms?\n\n` +
-      `✅ If you agree, type #agree\n❌ If you do NOT agree, type #deny`
-    );
-    session.stage = "terms";
+  if (session.stage === "waitingStart") {
+    if (textRaw.trim().toLowerCase() === "#start") {
+      sendMessage(
+        `⚠️ Welcome to the Meme Stealing License process! ⚠️\n\n` +
+        `Before you proceed, you must review and consent to the following Terms & Conditions:\n\n` +
+        `1. You may use/steal memes only for personal and group chat use.\n` +
+        `2. This license is non-exclusive and can be revoked at any time.\n` +
+        `3. Meme quality is your responsibility. Overuse of unfunny memes may result in suspension.\n` +
+        `4. This license does NOT guarantee originality.\n` +
+        `5. Cross-chat usage is strictly forbidden.\n` +
+        `6. Reapply per chat if needed.\n` +
+        `7. Failure to comply may result in temporary or permanent revocation of meme privileges.\n\n` +
+        `Do you consent to these terms?\n\n` +
+        `✅ If you agree, type #agree\n❌ If you do NOT agree, type #deny`
+      );
+      session.stage = "terms";
+    }
     return res.sendStatus(200);
   }
 
