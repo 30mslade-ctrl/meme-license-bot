@@ -75,22 +75,26 @@ function sendMessageWithMention(text, name, userId) {
 // ===== MAIN ROUTE =====
 app.post("/", (req, res) => {
   const textRaw = req.body.text || "";
-  const text = textRaw.trim().toLowerCase();
   const user = req.body.name;
   const userId = req.body.user_id;
+  const sender_type = req.body.sender_type || "";
   const attachments = req.body.attachments || [];
   const hasImage = attachments.some(att => att.type === "image");
 
-  if (!sessions[user]) {
-    sessions[user] = { stage: "start", step: 0, answers: [] };
-  }
+  // Ignore messages sent by the bot itself
+  if (sender_type === "bot") return res.sendStatus(200);
 
+  // Initialize user session if not exists
+  if (!sessions[user]) {
+    sessions[user] = { stage: "waitingStart", step: 0, answers: [] };
+  }
   const session = sessions[user];
 
-  // === STAGE: START / #start trigger ===
-  if (session.stage === "start" || text === "#start") {
-    sendMessage(
-      `⚠️ Welcome to the Meme Stealing License process! Before continuing, please review the Terms & Conditions:\n\n` +
+  // === WAITING FOR #START ===
+  if (session.stage === "waitingStart") {
+    if (textRaw.trim().toLowerCase() === "#start") {
+      sendMessage(
+        `⚠️ Welcome to the Meme Stealing License process! Before continuing, please review the Terms & Conditions:\n\n` +
         `1. You may use/steal memes only for personal and group chat use.\n` +
         `2. This license is non-exclusive and can be revoked at any time.\n` +
         `3. Meme quality is your responsibility. Overuse of unfunny memes may result in suspension.\n` +
@@ -99,17 +103,18 @@ app.post("/", (req, res) => {
         `6. You may contact a meme licensor to reapply per chat.\n` +
         `7. Failure to comply may result in meme privileges being temporarily or permanently revoked.\n\n` +
         `If you agree, type #agree\nIf you deny, type #deny`
-    );
-    session.stage = "terms";
+      );
+      session.stage = "terms";
+    }
     return res.sendStatus(200);
   }
 
-  // === STAGE: TERMS (agree/deny) ===
+  // === TERMS AGREEMENT ===
   if (session.stage === "terms") {
-    if (text === "#agree") {
-      sendMessage(`👍 Okay ${user}, please upload a photo for your Meme Stealing License.`);
+    if (textRaw.trim().toLowerCase() === "#agree") {
+      sendMessage(`${user}, please upload a photo for your Meme Stealing License.`);
       session.stage = "waitingPhoto";
-    } else if (text === "#deny") {
+    } else if (textRaw.trim().toLowerCase() === "#deny") {
       sendMessage(`🚫 Oh, well, then why are you here in the first place? Skedaddle back to where you came from!`);
       delete sessions[user];
     } else {
@@ -118,7 +123,7 @@ app.post("/", (req, res) => {
     return res.sendStatus(200);
   }
 
-  // === STAGE: WAITING FOR PHOTO ===
+  // === WAITING FOR PHOTO ===
   if (session.stage === "waitingPhoto") {
     if (hasImage) {
       session.stage = "waitingReview";
@@ -135,7 +140,7 @@ app.post("/", (req, res) => {
 
   // === OWNER COMMANDS (approve/reject) ===
   if (userId === OWNER_ID) {
-    if (text === "#approve") {
+    if (textRaw.trim().toLowerCase() === "#approve") {
       for (const u in sessions) {
         if (sessions[u].stage === "waitingReview") {
           sessions[u].stage = "interview";
@@ -148,7 +153,7 @@ app.post("/", (req, res) => {
       return res.sendStatus(200);
     }
 
-    if (text === "#reject") {
+    if (textRaw.trim().toLowerCase() === "#reject") {
       for (const u in sessions) {
         if (sessions[u].stage === "waitingReview") {
           sendMessage(`${u}, your photo has been rejected by upper management. Please upload a better photo or try again later.`);
@@ -160,9 +165,9 @@ app.post("/", (req, res) => {
     }
   }
 
-  // === STAGE: INTERVIEW ===
+  // === INTERVIEW ===
   if (session.stage === "interview") {
-    session.answers.push({ question: questions[session.step], answer: req.body.text || "(No answer given)" });
+    session.answers.push({ question: questions[session.step], answer: textRaw || "(No answer given)" });
     session.step++;
 
     if (session.step < questions.length) {
@@ -180,8 +185,7 @@ app.post("/", (req, res) => {
     return res.sendStatus(200);
   }
 
-  // Ignore other messages
-  return res.sendStatus(200);
+  return res.sendStatus(200); // fallback
 });
 
 // ===== START SERVER =====
