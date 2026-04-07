@@ -5,18 +5,63 @@ const https = require("https");
 const app = express();
 app.use(bodyParser.json());
 
-// ===== CONFIG =====
-const BOT_ID = "8846a62e10e090cb28b4582a19";
-const OWNER_TAG = "@Mira(Reviewer)"; // Tag the owner for notifications
+// ===== CONFIG - EDIT THESE =====
+const BOT_ID = "PASTE_YOUR_BOT_ID_HERE";
+const OWNER_NAME = "YOUR_DISPLAY_NAME"; // EXACT display name (case sensitive)
+const OWNER_ID = "YOUR_NUMERIC_USER_ID"; // your GroupMe user_id as a string
+
+// ===== QUESTIONS =====
+// Must include these first three exactly
+const questions = [
+  "State your full name.",
+  "State your gender.",
+  "State your occupation.",
+  "Why do you want this Meme Stealing License? Be honest!",
+  "What's your favorite type of meme to steal?",
+  "How would you responsibly use memes in a group chat?",
+  "If two people steal the same meme, how would you handle it?",
+  "How often do you plan to steal memes per day? (Be realistic!)",
+  "If a meme is painfully unfunny, what do you do with it?",
+  "Final question: Are you cool? Defend your answer!"
+];
 
 // ===== MEMORY =====
-let users = {};
+// Sessions keyed by username to track interview progress
+const sessions = {};
 
-// ===== SEND MESSAGE =====
+// ===== HELPER: Send message WITHOUT mention =====
 function sendMessage(text) {
+  const data = JSON.stringify({ bot_id: BOT_ID, text });
+  const options = {
+    hostname: "api.groupme.com",
+    path: "/v3/bots/post",
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Content-Length": data.length
+    }
+  };
+
+  const req = https.request(options);
+  req.write(data);
+  req.end();
+}
+
+// ===== HELPER: Send message WITH mention to owner =====
+function sendMessageWithMention(text, name, userId) {
+  const mentionIndex = text.length + 1; // position where mention starts (after a space)
+  const mentionLength = name.length + 1; // length of mention (including '@')
+
   const data = JSON.stringify({
     bot_id: BOT_ID,
-    text: text
+    text: text + " @" + name,
+    attachments: [
+      {
+        type: "mentions",
+        loci: [[mentionIndex, mentionLength]],
+        user_ids: [userId]
+      }
+    ]
   });
 
   const options = {
@@ -30,145 +75,141 @@ function sendMessage(text) {
   };
 
   const req = https.request(options);
-  req.on("error", () => {});
   req.write(data);
   req.end();
 }
 
-// ===== QUESTIONS =====
-const questions = [
-  "State your full name.",
-  "State your gender.",
-  "State your occupation.",
-  "Why are you applying for a Meme Stealing License at this time?",
-  "Describe your sense of humor in 3 words.",
-  "What is your primary meme source?",
-  "How many memes do you realistically plan to steal per day?",
-  "What would you do if your meme gets ignored?",
-  "If someone sends the same meme as you, what do you do?",
-  "Define 'too far' in meme culture.",
-  "What is one meme you refuse to steal?",
-  "You find a top-tier meme. What is your first move?",
-  "How do you respond to being called unfunny?",
-  "Rate your humor under pressure (1–10).",
-  "Are you original, or just a redistributor?",
-  "Final question: Why should we trust you with meme privileges?"
-];
-
-// ===== REJECTION MESSAGES =====
-const rejectionMessages = [
-  "After careful review, your application has been denied due to insufficient comedic ability.",
-  "Application rejected. Reason: You did not meet the Funny Standard™.",
-  "We regret to inform you that your meme privileges have been denied indefinitely.",
-  "Application denied. Please take time to reflect on your humor.",
-  "Rejected. The council found your vibe questionable.",
-  "Application status: DENIED.\nReason: Not funny enough under pressure.",
-  "We reviewed your application and immediately said no.",
-  "Denied. Please reapply after gaining personality.",
-  "Application rejected for crimes against comedy.",
-  "Unfortunately, this is not your arc."
-];
-
-// ===== MAIN ROUTE =====
+// ===== ROUTE: Handle incoming messages =====
 app.post("/", (req, res) => {
-  const text = req.body.text;
+  const textRaw = req.body.text || "";
+  const text = textRaw.trim().toLowerCase();
   const user = req.body.name;
+  const attachments = req.body.attachments || [];
+  const hasImage = attachments.some(att => att.type === "image");
 
-  if (!text || !user) return res.sendStatus(200);
-
-  if (!users[user]) {
-    users[user] = {
-      started: false,
-      stage: "none", // none, photo, waiting, interview
+  if (!sessions[user]) {
+    // Initialize session state for this user
+    sessions[user] = {
+      stage: "start", // stages: start -> terms -> waitingPhoto -> waitingReview -> interview -> done
       step: 0,
       answers: []
     };
   }
 
-  const u = users[user];
+  const session = sessions[user];
 
-  // ===== START =====
-  if (text.toLowerCase() === "#start") {
-    u.started = true;
-    u.stage = "photo";
-
-    sendMessage(`${user}, please submit a photo for your Meme License.\nThen type: #photo_sent`);
+  // === STAGE: START ===
+  if (session.stage === "start") {
+    sendMessage(
+      `⚠️ Before continuing, please review the following Terms & Conditions for the Meme Stealing License:\n\n` +
+        `1. You may use/steal memes only for personal and group chat use.\n` +
+        `2. This license is non-exclusive and can be revoked at any time.\n` +
+        `3. Meme quality is your responsibility. Overuse of unfunny memes may result in suspension.\n` +
+        `4. This license does NOT guarantee originality.\n` +
+        `5. Cross-chat usage is NOT allowed.\n` +
+        `6. You may contact a meme licensor to reapply per chat.\n` +
+        `7. Failure to comply may result in meme privileges being temporarily or permanently revoked.\n\n` +
+        `If you agree, type #agree\n` +
+        `If you deny, type #deny`
+    );
+    session.stage = "terms";
     return res.sendStatus(200);
   }
 
-  // ===== PHOTO =====
-  if (text.toLowerCase() === "#photo_sent" && u.stage === "photo") {
-    u.stage = "waiting";
-
-    sendMessage(`Photo received. Submitting to upper management.\nPlease wait patiently.\n\n${OWNER_TAG}`);
-    return res.sendStatus(200);
-  }
-
-  // ===== APPROVE =====
-  if (text.toLowerCase() === "#approve") {
-    for (let name in users) {
-      if (users[name].stage === "waiting") {
-        users[name].stage = "interview";
-        users[name].step = 0;
-
-        sendMessage(`${name}, your photo has been approved. Beginning interview.`);
-        sendMessage(questions[0]);
-        break;
-      }
+  // === STAGE: TERMS (wait for agree/deny) ===
+  if (session.stage === "terms") {
+    if (text === "#agree") {
+      sendMessage(`👍 Okay ${user}, please upload a photo for your Meme Stealing License.`);
+      session.stage = "waitingPhoto";
+    } else if (text === "#deny") {
+      sendMessage(
+        `🚫 Oh, well, then why are you here in the first place? Skedaddle back to where you came from!`
+      );
+      delete sessions[user];
+    } else {
+      sendMessage(`Please respond with #agree to proceed or #deny to quit.`);
     }
     return res.sendStatus(200);
   }
 
-  // ===== REJECT =====
-  if (text.toLowerCase() === "#reject") {
-    for (let name in users) {
-      if (users[name].stage === "waiting" || users[name].stage === "interview") {
-
-        const randomMessage = rejectionMessages[Math.floor(Math.random() * rejectionMessages.length)];
-
-        sendMessage(`🚫 APPLICATION DENIED: ${name} 🚫\n\n${randomMessage}\n\nYou may reapply at a later time.\n\n${OWNER_TAG}`);
-
-        delete users[name];
-        break;
-      }
+  // === STAGE: WAITING FOR PHOTO ===
+  if (session.stage === "waitingPhoto") {
+    if (hasImage) {
+      session.stage = "waitingReview";
+      sendMessageWithMention(
+        `${user} has uploaded their photo. Sending to upper management for review. Please wait patiently.`,
+        OWNER_NAME,
+        OWNER_ID
+      );
+    } else {
+      sendMessage(`${user}, please upload a photo to proceed.`);
     }
     return res.sendStatus(200);
   }
 
-  // ===== INTERVIEW =====
-  if (u.stage === "interview") {
-    u.answers.push({
-      question: questions[u.step],
-      answer: text
+  // === OWNER COMMANDS ===
+  // Only allow owner to approve or reject photos
+  if (req.body.user_id === OWNER_ID) {
+    if (text === "#approve") {
+      // Find a session waiting for review
+      for (const u in sessions) {
+        if (sessions[u].stage === "waitingReview") {
+          sessions[u].stage = "interview";
+          sessions[u].step = 0;
+          sendMessage(`${u}, your photo has been approved. Beginning interview.`);
+          sendMessage(questions[0]);
+          break;
+        }
+      }
+      return res.sendStatus(200);
+    }
+
+    if (text === "#reject") {
+      // Find a session waiting for review
+      for (const u in sessions) {
+        if (sessions[u].stage === "waitingReview") {
+          sendMessage(
+            `${u}, your photo has been rejected by upper management. Please upload a better photo or try again later.`
+          );
+          sessions[u].stage = "waitingPhoto";
+          break;
+        }
+      }
+      return res.sendStatus(200);
+    }
+  }
+
+  // === STAGE: INTERVIEW ===
+  if (session.stage === "interview") {
+    // Record answer for current question
+    session.answers.push({
+      question: questions[session.step],
+      answer: req.body.text || "(No answer given)"
     });
 
-    u.step++;
+    session.step++;
 
-    if (u.step < questions.length) {
-      sendMessage(questions[u.step]);
+    if (session.step < questions.length) {
+      // Ask next question
+      sendMessage(questions[session.step]);
     } else {
-      let summary = `📄 FULL APPLICATION: ${user} 📄\n\n`;
-
-      u.answers.forEach((qa, i) => {
+      // Interview finished
+      let summary = `📄 FULL APPLICATION - ${user} 📄\n\n`;
+      session.answers.forEach((qa, i) => {
         summary += `Q${i + 1}: ${qa.question}\nA: ${qa.answer}\n\n`;
       });
-
-      summary += `Application submitted for review.\nPlease wait 2–3 business minutes.\n\n${OWNER_TAG}`;
-
-      sendMessage(summary);
-
-      // IMPORTANT: keep them in "waiting" so you can reject AFTER interview too
-      users[user].stage = "waiting";
+      summary += `Application submitted. Please wait 2–3 business minutes.`;
+      sendMessageWithMention(summary, OWNER_NAME, OWNER_ID);
+      // Clear session
+      delete sessions[user];
     }
-
     return res.sendStatus(200);
   }
 
-  res.sendStatus(200);
+  // Catch-all: For all other messages, ignore or remind user
+  return res.sendStatus(200);
 });
 
-// ===== SERVER =====
+// ===== START SERVER =====
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("Bot running on port " + PORT);
-});
+app.listen(PORT, () => console.log(`Bot running on port ${PORT}`));
