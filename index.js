@@ -35,27 +35,26 @@ function sendMessage(text) {
   req.end();
 }
 
-// ===== #START COMMAND =====
-  if (text.toLowerCase() === "#start") {
-    u.started = true;
-    u.stage = "terms";
-
-    sendMessage(
-      `⚠️ Welcome to the Meme Stealing License process! ⚠️\n\n` +
-      `Before you proceed, please review and consent to the following Terms & Conditions:\n\n` +
-      `1. You may use/steal memes only for personal and group chat use.\n` +
-      `2. This license is non-exclusive and can be revoked at any time.\n` +
-      `3. Meme quality is your responsibility. Overuse of unfunny memes may result in suspension.\n` +
-      `4. This license does NOT guarantee originality.\n` +
-      `5. Cross-chat usage is strictly forbidden.\n` +
-      `6. Reapply per chat if needed.\n` +
-      `7. Failure to comply may result in temporary or permanent revocation of meme privileges.\n\n` +
-      `Do you consent to these terms?\n\n` +
-      `✅ If you agree, type #agree\n❌ If you do NOT agree, type #deny`
-    );
-    return res.sendStatus(200);
-  }
-
+function sendMessageWithMention(text, userName, userId) {
+  const mentionIndex = text.length + 1;
+  const mentionLength = userName.length + 1;
+  const data = JSON.stringify({
+    bot_id: BOT_ID,
+    text: text + " @" + userName,
+    attachments: [
+      { type: "mentions", loci: [[mentionIndex, mentionLength]], user_ids: [userId] }
+    ]
+  });
+  const options = {
+    hostname: "api.groupme.com",
+    path: "/v3/bots/post",
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Content-Length": data.length }
+  };
+  const req = https.request(options);
+  req.write(data);
+  req.end();
+}
 
 // ===== QUESTIONS =====
 const questions = [
@@ -74,7 +73,10 @@ const questions = [
   "How do you respond to being called unfunny?",
   "Rate your humor under pressure (1–10).",
   "Are you original, or just a redistributor?",
-  "Final question: Why should we trust you with meme privileges?"
+  "Final question: Why should we trust you with meme privileges?",
+  "If your meme is stolen and reposted, what is your next move?",
+  "What meme format would you like to see be completely eradicated from existence?",
+  "How do you feel about the meme lifecycle — should memes go through a period of decay or should they last forever?"
 ];
 
 // ===== REJECTION MESSAGES =====
@@ -95,6 +97,10 @@ const rejectionMessages = [
 app.post("/", (req, res) => {
   const text = req.body.text;
   const user = req.body.name;
+  const userId = req.body.user_id;
+  const sender_type = req.body.sender_type || "";
+  const attachments = req.body.attachments || [];
+  const hasImage = attachments.some(att => att.type === "image");
 
   if (!text || !user) return res.sendStatus(200);
 
@@ -109,6 +115,27 @@ app.post("/", (req, res) => {
 
   const u = users[user];
 
+  // ===== #START COMMAND =====
+  if (text.toLowerCase() === "#start") {
+    u.started = true;
+    u.stage = "terms";
+
+    sendMessage(
+      `⚠️ Welcome to the Meme Stealing License process! ⚠️\n\n` +
+      `Before you proceed, please review and consent to the following Terms & Conditions:\n\n` +
+      `1. You may use/steal memes only for personal and group chat use.\n` +
+      `2. This license is non-exclusive and can be revoked at any time.\n` +
+      `3. Meme quality is your responsibility. Overuse of unfunny memes may result in suspension.\n` +
+      `4. This license does NOT guarantee originality.\n` +
+      `5. Cross-chat usage is strictly forbidden.\n` +
+      `6. Reapply per chat if needed.\n` +
+      `7. Failure to comply may result in temporary or permanent revocation of meme privileges.\n\n` +
+      `Do you consent to these terms?\n\n` +
+      `✅ If you agree, type #agree\n❌ If you do NOT agree, type #deny`
+    );
+    return res.sendStatus(200);
+  }
+
   // ===== TERMS AGREEMENT =====
   if (text.toLowerCase() === "#agree" && u.stage === "terms") {
     u.stage = "photo";
@@ -122,8 +149,8 @@ app.post("/", (req, res) => {
     return res.sendStatus(200);
   }
 
-  // ===== PHOTO =====
-  if (text.toLowerCase() === "#photo_sent" && u.stage === "photo") {
+  // ===== AUTO PHOTO DETECTION =====
+  if (hasImage && u.stage === "photo") {
     u.stage = "waiting";
 
     sendMessage(`Photo received. Submitting to upper management.\nPlease wait patiently.\n\n${OWNER_TAG}`);
