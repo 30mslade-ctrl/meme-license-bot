@@ -26,9 +26,6 @@ const questions = [
   "Final question: Defend why you are trustworthy enough to steal memes."
 ];
 
-// ===== MEMORY =====
-const sessions = {}; // Stores user sessions
-
 // ===== HELPER FUNCTIONS =====
 function sendMessage(text) {
   const data = JSON.stringify({ bot_id: BOT_ID, text });
@@ -49,7 +46,9 @@ function sendMessageWithMention(text, name, userId) {
   const data = JSON.stringify({
     bot_id: BOT_ID,
     text: text + " @" + name,
-    attachments: [{ type: "mentions", loci: [[mentionIndex, mentionLength]], user_ids: [userId] }]
+    attachments: [
+      { type: "mentions", loci: [[mentionIndex, mentionLength]], user_ids: [userId] }
+    ]
   });
   const options = {
     hostname: "api.groupme.com",
@@ -74,9 +73,8 @@ app.post("/", (req, res) => {
   // Ignore messages from the bot itself
   if (sender_type === "bot") return res.sendStatus(200);
 
-  // Create session only when user says #start
+  // ===== #START COMMAND =====
   if (textRaw.trim().toLowerCase() === "#start") {
-    if (!sessions[user]) sessions[user] = { stage: "terms", step: 0, answers: [] };
     sendMessage(
       `⚠️ Welcome to the Meme Stealing License process! ⚠️\n\n` +
       `Before you proceed, you must review and consent to the following Terms & Conditions:\n\n` +
@@ -93,79 +91,44 @@ app.post("/", (req, res) => {
     return res.sendStatus(200);
   }
 
-  // If session doesn't exist yet, ignore everything else
-  if (!sessions[user]) return res.sendStatus(200);
-  const session = sessions[user];
-
   // ===== TERMS AGREEMENT =====
-  if (session.stage === "terms") {
-    if (textRaw.trim().toLowerCase() === "#agree") {
-      sendMessage(`${user}, thank you for agreeing! Please upload a photo for your Meme Stealing License.`);
-      session.stage = "waitingPhoto";
-    } else if (textRaw.trim().toLowerCase() === "#deny") {
-      sendMessage(`🚫 Oh, then why are you here in the first place? Skedaddle back to where you came from!`);
-      session.stage = "denied";
-    }
+  if (textRaw.trim().toLowerCase() === "#agree") {
+    sendMessage(`${user}, thank you for agreeing! Please upload a photo for your Meme Stealing License.`);
+    return res.sendStatus(200);
+  }
+
+  if (textRaw.trim().toLowerCase() === "#deny") {
+    sendMessage(`🚫 Oh, then why are you here in the first place? Skedaddle back to where you came from!`);
     return res.sendStatus(200);
   }
 
   // ===== WAITING FOR PHOTO =====
-  if (session.stage === "waitingPhoto") {
-    if (hasImage) {
-      session.stage = "waitingReview";
-      sendMessageWithMention(
-        `${user} has uploaded their photo. Sending to upper management for review. Please wait patiently.`,
-        OWNER_NAME,
-        OWNER_ID
-      );
-    } else {
-      sendMessage(`${user}, please upload a photo to proceed.`);
-    }
+  if (hasImage) {
+    sendMessageWithMention(
+      `${user} has uploaded their photo. Sending to upper management for review. Please wait patiently.`,
+      OWNER_NAME,
+      OWNER_ID
+    );
     return res.sendStatus(200);
   }
 
   // ===== OWNER APPROVE / REJECT =====
   if (userId === OWNER_ID) {
     if (textRaw.trim().toLowerCase() === "#approve") {
-      for (const u in sessions) {
-        if (sessions[u].stage === "waitingReview") {
-          sessions[u].stage = "interview";
-          sessions[u].step = 0;
-          sendMessage(`${u}, your photo has been approved. Beginning interview.`);
-          sendMessage(questions[0]);
-          break;
-        }
-      }
+      sendMessage(`${user}, your photo has been approved. Beginning interview.`);
+      sendMessage(questions[0]);
       return res.sendStatus(200);
     }
     if (textRaw.trim().toLowerCase() === "#reject") {
-      for (const u in sessions) {
-        if (sessions[u].stage === "waitingReview") {
-          sendMessage(`${u}, your photo has been rejected by upper management. Please upload a better photo or try again later.`);
-          sessions[u].stage = "waitingPhoto";
-          break;
-        }
-      }
+      sendMessage(`${user}, your photo has been rejected by upper management. Please upload a better photo or try again later.`);
       return res.sendStatus(200);
     }
   }
 
   // ===== INTERVIEW =====
-  if (session.stage === "interview") {
-    session.answers.push({ question: questions[session.step], answer: textRaw || "(No answer given)" });
-    session.step++;
-
-    if (session.step < questions.length) {
-      sendMessage(questions[session.step]);
-    } else {
-      let summary = `📄 FULL APPLICATION - ${user} 📄\n\n`;
-      session.answers.forEach((qa, i) => {
-        summary += `Q${i + 1}: ${qa.question}\nA: ${qa.answer}\n\n`;
-      });
-      summary += `Application submitted. Please wait 2–3 business minutes.`;
-      sendMessageWithMention(summary, OWNER_NAME, OWNER_ID);
-      session.stage = "completed"; // session remains for reference
-    }
+  if (textRaw) {
+    sendMessage(`Interview question: ${questions[0]}`);
+    // Move forward to next question automatically after this one
     return res.sendStatus(200);
   }
 
