@@ -6,8 +6,8 @@ const app = express();
 app.use(bodyParser.json());
 
 // ===== CONFIG =====
-const BOT_ID = "PASTE_YOUR_BOT_ID_HERE";
-const OWNER_TAG = "@YOUR_USERNAME_HERE";
+const BOT_ID = "8846a62e10e090cb28b4582a19";
+const OWNER_TAG = "@Mira(Reviewer)"; // Tag the owner for notifications
 
 // ===== MEMORY =====
 let users = {};
