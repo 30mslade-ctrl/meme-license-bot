@@ -6,9 +6,9 @@ const app = express();
 app.use(bodyParser.json());
 
 // ===== CONFIG =====
-const BOT_ID = "YOUR_BOT_ID_HERE"; // replace with your bot ID
+const BOT_ID = "8846a62e10e090cb28b4582a19"; // replace with your bot ID
 const OWNER_NAME = "Mira(Reviewer)"; // exact display name
-const OWNER_ID = "YOUR_USER_ID_HERE"; // GroupMe user ID as a string
+const OWNER_ID = "122993150"; // GroupMe user ID as a string
 
 // ===== INTERVIEW QUESTIONS =====
 const questions = [
