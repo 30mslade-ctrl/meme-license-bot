@@ -105,8 +105,6 @@ app.post("/", (req, res) => {
     } else if (textRaw.trim().toLowerCase() === "#deny") {
       sendMessage(`🚫 Oh, then why are you here in the first place? Skedaddle back to where you came from!`);
       session.stage = "denied";
-    } else {
-      sendMessage(`Please type #agree to proceed or #deny to quit.`);
     }
     return res.sendStatus(200);
   }
