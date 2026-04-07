@@ -73,10 +73,7 @@ const questions = [
   "How do you respond to being called unfunny?",
   "Rate your humor under pressure (1–10).",
   "Are you original, or just a redistributor?",
-  "Final question: Why should we trust you with meme privileges?",
-  "If your meme is stolen and reposted, what is your next move?",
-  "What meme format would you like to see be completely eradicated from existence?",
-  "How do you feel about the meme lifecycle — should memes go through a period of decay or should they last forever?"
+  "Final question: Why should we trust you with meme privileges?"
 ];
 
 // ===== REJECTION MESSAGES =====
@@ -102,6 +99,8 @@ app.post("/", (req, res) => {
   const attachments = req.body.attachments || [];
   const hasImage = attachments.some(att => att.type === "image");
 
+  console.log(`Received message from ${user}: ${text}`);
+
   if (!text || !user) return res.sendStatus(200);
 
   if (!users[user]) {
@@ -111,6 +110,7 @@ app.post("/", (req, res) => {
       step: 0,
       answers: []
     };
+    console.log(`Initialized session for ${user}`);
   }
 
   const u = users[user];
@@ -119,6 +119,7 @@ app.post("/", (req, res) => {
   if (text.toLowerCase() === "#start") {
     u.started = true;
     u.stage = "terms";
+    console.log(`${user} started the process`);
 
     sendMessage(
       `⚠️ Welcome to the Meme Stealing License process! ⚠️\n\n` +
@@ -151,6 +152,7 @@ app.post("/", (req, res) => {
 
   // ===== AUTO PHOTO DETECTION =====
   if (hasImage && u.stage === "photo") {
+    console.log(`${user} uploaded a photo`);
     u.stage = "waiting";
 
     sendMessage(`Photo received. Submitting to upper management.\nPlease wait patiently.\n\n${OWNER_TAG}`);
