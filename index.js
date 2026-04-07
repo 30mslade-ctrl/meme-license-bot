@@ -127,8 +127,15 @@ app.post("/", (req, res) => {
 
   // ===== INTERVIEW =====
   if (textRaw) {
-    sendMessage(`Interview question: ${questions[0]}`);
-    // Move forward to next question automatically after this one
+    const questionIndex = questions.findIndex(q => q === textRaw);
+    const nextQuestionIndex = questionIndex + 1;
+    
+    if (nextQuestionIndex < questions.length) {
+      sendMessage(questions[nextQuestionIndex]);
+    } else {
+      sendMessage("You have completed the interview. Thank you for your application!");
+    }
+
     return res.sendStatus(200);
   }
 
