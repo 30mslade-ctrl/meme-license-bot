@@ -5,10 +5,10 @@ const https = require("https");
 const app = express();
 app.use(bodyParser.json());
 
-// ===== CONFIG - EDIT THESE =====
+// ===== CONFIG =====
 const BOT_ID = "8846a62e10e090cb28b4582a19";
-const OWNER_NAME = "@Mira(Reviewer)"; // EXACT display name (case sensitive)
-const OWNER_ID = "122993150"; // your GroupMe user_id as a string
+const OWNER_NAME = "Mira(Reviewer)"; // exact display name
+const OWNER_ID = "122993150"; // GroupMe user_id as a string
 
 // ===== INTERVIEW QUESTIONS =====
 const questions = [
@@ -34,10 +34,7 @@ function sendMessage(text) {
     hostname: "api.groupme.com",
     path: "/v3/bots/post",
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Length": data.length
-    }
+    headers: { "Content-Type": "application/json", "Content-Length": data.length }
   };
   const req = https.request(options);
   req.write(data);
@@ -45,7 +42,7 @@ function sendMessage(text) {
 }
 
 function sendMessageWithMention(text, name, userId) {
-  const mentionIndex = text.length + 1; // where mention starts
+  const mentionIndex = text.length + 1;
   const mentionLength = name.length + 1;
   const data = JSON.stringify({
     bot_id: BOT_ID,
@@ -62,10 +59,7 @@ function sendMessageWithMention(text, name, userId) {
     hostname: "api.groupme.com",
     path: "/v3/bots/post",
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Length": data.length
-    }
+    headers: { "Content-Type": "application/json", "Content-Length": data.length }
   };
   const req = https.request(options);
   req.write(data);
@@ -81,49 +75,45 @@ app.post("/", (req, res) => {
   const attachments = req.body.attachments || [];
   const hasImage = attachments.some(att => att.type === "image");
 
-  // Ignore messages sent by the bot itself
   if (sender_type === "bot") return res.sendStatus(200);
 
-  // Initialize user session if not exists
-  if (!sessions[user]) {
-    sessions[user] = { stage: "waitingStart", step: 0, answers: [] };
-  }
+  if (!sessions[user]) sessions[user] = { stage: "waitingStart", step: 0, answers: [] };
   const session = sessions[user];
 
-  // === WAITING FOR #START ===
-  if (session.stage === "waitingStart") {
-    if (textRaw.trim().toLowerCase() === "#start") {
-      sendMessage(
-        `⚠️ Welcome to the Meme Stealing License process! Before continuing, please review the Terms & Conditions:\n\n` +
-        `1. You may use/steal memes only for personal and group chat use.\n` +
-        `2. This license is non-exclusive and can be revoked at any time.\n` +
-        `3. Meme quality is your responsibility. Overuse of unfunny memes may result in suspension.\n` +
-        `4. This license does NOT guarantee originality.\n` +
-        `5. Cross-chat usage is NOT allowed.\n` +
-        `6. You may contact a meme licensor to reapply per chat.\n` +
-        `7. Failure to comply may result in meme privileges being temporarily or permanently revoked.\n\n` +
-        `If you agree, type #agree\nIf you deny, type #deny`
-      );
-      session.stage = "terms";
-    }
+  // ===== #START COMMAND =====
+  if (session.stage === "waitingStart" && textRaw.trim().toLowerCase() === "#start") {
+    sendMessage(
+      `⚠️ Welcome to the Meme Stealing License process! ⚠️\n\n` +
+      `Before you can continue, please review the Terms & Conditions:\n` +
+      `1. You may use/steal memes only for personal and group chat use.\n` +
+      `2. This license is non-exclusive and can be revoked at any time.\n` +
+      `3. Meme quality is your responsibility. Overuse of unfunny memes may result in suspension.\n` +
+      `4. This license does NOT guarantee originality.\n` +
+      `5. Cross-chat usage is NOT allowed.\n` +
+      `6. You may contact a meme licensor to reapply per chat.\n` +
+      `7. Failure to comply may result in meme privileges being temporarily or permanently revoked.\n\n` +
+      `Do you consent to these terms?\n\n` +
+      `If you agree, type #agree\nIf you do NOT agree, type #deny`
+    );
+    session.stage = "terms";
     return res.sendStatus(200);
   }
 
-  // === TERMS AGREEMENT ===
+  // ===== TERMS AGREEMENT =====
   if (session.stage === "terms") {
     if (textRaw.trim().toLowerCase() === "#agree") {
-      sendMessage(`${user}, please upload a photo for your Meme Stealing License.`);
+      sendMessage(`${user}, thank you for agreeing! Please upload a photo for your Meme Stealing License.`);
       session.stage = "waitingPhoto";
     } else if (textRaw.trim().toLowerCase() === "#deny") {
-      sendMessage(`🚫 Oh, well, then why are you here in the first place? Skedaddle back to where you came from!`);
+      sendMessage(`🚫 Oh, then why are you here in the first place? Skedaddle back to where you came from!`);
       delete sessions[user];
     } else {
-      sendMessage(`Please respond with #agree to proceed or #deny to quit.`);
+      sendMessage(`Please type #agree to proceed or #deny to quit.`);
     }
     return res.sendStatus(200);
   }
 
-  // === WAITING FOR PHOTO ===
+  // ===== WAITING FOR PHOTO =====
   if (session.stage === "waitingPhoto") {
     if (hasImage) {
       session.stage = "waitingReview";
@@ -138,7 +128,7 @@ app.post("/", (req, res) => {
     return res.sendStatus(200);
   }
 
-  // === OWNER COMMANDS (approve/reject) ===
+  // ===== OWNER APPROVE / REJECT =====
   if (userId === OWNER_ID) {
     if (textRaw.trim().toLowerCase() === "#approve") {
       for (const u in sessions) {
@@ -152,7 +142,6 @@ app.post("/", (req, res) => {
       }
       return res.sendStatus(200);
     }
-
     if (textRaw.trim().toLowerCase() === "#reject") {
       for (const u in sessions) {
         if (sessions[u].stage === "waitingReview") {
@@ -165,7 +154,7 @@ app.post("/", (req, res) => {
     }
   }
 
-  // === INTERVIEW ===
+  // ===== INTERVIEW =====
   if (session.stage === "interview") {
     session.answers.push({ question: questions[session.step], answer: textRaw || "(No answer given)" });
     session.step++;
@@ -173,7 +162,6 @@ app.post("/", (req, res) => {
     if (session.step < questions.length) {
       sendMessage(questions[session.step]);
     } else {
-      // Summarize full application
       let summary = `📄 FULL APPLICATION - ${user} 📄\n\n`;
       session.answers.forEach((qa, i) => {
         summary += `Q${i + 1}: ${qa.question}\nA: ${qa.answer}\n\n`;
@@ -185,7 +173,7 @@ app.post("/", (req, res) => {
     return res.sendStatus(200);
   }
 
-  return res.sendStatus(200); // fallback
+  return res.sendStatus(200);
 });
 
 // ===== START SERVER =====
