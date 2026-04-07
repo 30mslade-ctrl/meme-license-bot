@@ -6,9 +6,9 @@ const app = express();
 app.use(bodyParser.json());
 
 // ===== CONFIG - EDIT THESE =====
-const BOT_ID = "PASTE_YOUR_BOT_ID_HERE";
-const OWNER_NAME = "YOUR_DISPLAY_NAME"; // EXACT display name (case sensitive)
-const OWNER_ID = "YOUR_NUMERIC_USER_ID"; // your GroupMe user_id as a string
+const BOT_ID = "8846a62e10e090cb28b4582a19";
+const OWNER_NAME = "@Mira(Reviewer)"; // EXACT display name (case sensitive)
+const OWNER_ID = "122993150"; // your GroupMe user_id as a string
 
 // ===== QUESTIONS =====
 // Must include these first three exactly
