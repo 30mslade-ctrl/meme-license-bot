@@ -7,25 +7,27 @@ app.use(bodyParser.json());
 
 // ===== CONFIG =====
 const BOT_ID = "8846a62e10e090cb28b4582a19";
-const OWNER_NAME = "Mira(Reviewer)"; // exact display name
-const OWNER_ID = "122993150"; // GroupMe user_id as a string
+const OWNER_NAME = "Mira(Reviewer)";
+const OWNER_ID = "122993150";
 
 // ===== INTERVIEW QUESTIONS =====
 const questions = [
   "State your full name.",
   "State your gender.",
   "State your occupation.",
-  "Why do you want this Meme Stealing License? Be honest!",
-  "What's your favorite type of meme to steal?",
-  "How would you responsibly use memes in a group chat?",
-  "If two people steal the same meme, how would you handle it?",
-  "How often do you plan to steal memes per day? (Be realistic!)",
-  "If a meme is painfully unfunny, what do you do with it?",
-  "Final question: Are you cool? Defend your answer!"
+  "Explain why memes are essential to modern society.",
+  "Describe your strategy for responsibly stealing memes.",
+  "What safeguards would you implement to prevent meme overuse?",
+  "If another licensor contests a meme you posted, how do you respond?",
+  "Quantify your daily meme quota.",
+  "Describe the most egregious meme crime you have witnessed.",
+  "How do you handle a meme that goes viral without credit?",
+  "Explain your philosophy on meme originality.",
+  "Final question: Defend why you are trustworthy enough to steal memes."
 ];
 
 // ===== MEMORY =====
-const sessions = {}; // Tracks user sessions
+const sessions = {};
 
 // ===== HELPER FUNCTIONS =====
 function sendMessage(text) {
@@ -47,13 +49,7 @@ function sendMessageWithMention(text, name, userId) {
   const data = JSON.stringify({
     bot_id: BOT_ID,
     text: text + " @" + name,
-    attachments: [
-      {
-        type: "mentions",
-        loci: [[mentionIndex, mentionLength]],
-        user_ids: [userId]
-      }
-    ]
+    attachments: [{ type: "mentions", loci: [[mentionIndex, mentionLength]], user_ids: [userId] }]
   });
   const options = {
     hostname: "api.groupme.com",
@@ -84,16 +80,16 @@ app.post("/", (req, res) => {
   if (session.stage === "waitingStart" && textRaw.trim().toLowerCase() === "#start") {
     sendMessage(
       `⚠️ Welcome to the Meme Stealing License process! ⚠️\n\n` +
-      `Before you can continue, please review the Terms & Conditions:\n` +
+      `Before you proceed, you must review and consent to the following Terms & Conditions:\n\n` +
       `1. You may use/steal memes only for personal and group chat use.\n` +
       `2. This license is non-exclusive and can be revoked at any time.\n` +
       `3. Meme quality is your responsibility. Overuse of unfunny memes may result in suspension.\n` +
       `4. This license does NOT guarantee originality.\n` +
-      `5. Cross-chat usage is NOT allowed.\n` +
-      `6. You may contact a meme licensor to reapply per chat.\n` +
-      `7. Failure to comply may result in meme privileges being temporarily or permanently revoked.\n\n` +
+      `5. Cross-chat usage is strictly forbidden.\n` +
+      `6. Reapply per chat if needed.\n` +
+      `7. Failure to comply may result in temporary or permanent revocation of meme privileges.\n\n` +
       `Do you consent to these terms?\n\n` +
-      `If you agree, type #agree\nIf you do NOT agree, type #deny`
+      `✅ If you agree, type #agree\n❌ If you do NOT agree, type #deny`
     );
     session.stage = "terms";
     return res.sendStatus(200);
